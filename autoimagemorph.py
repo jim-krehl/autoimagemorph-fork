@@ -51,6 +51,7 @@ from scipy.spatial import Delaunay
 from scipy.interpolate import RectBivariateSpline
 from matplotlib.path import Path
 import numpy as np
+import pathlib
 
 #######################################################
 #   https://github.com/ddowd97/Morphing
@@ -259,12 +260,7 @@ def initmorph(startimgpath,endimgpath,featuregridsize,subpixel,showfeatures,scal
 
 ####
 
-def morphprocess(mphs,framerate,outimgprefix,subpixel,smoothing) :
-    global framecnt
-    
-    # frame_0 is the starting image, so framecnt = _1
-    framecnt = framecnt + 1
-    
+def morphprocess(inter_index,mphs,framerate,outimgprefix,subpixel,smoothing) :
     # loop generate morph frames and save
     for i in range(1,framerate) :
         
@@ -290,8 +286,7 @@ def morphprocess(mphs,framerate,outimgprefix,subpixel,smoothing) :
             outimage = cv2.resize(outimage, ( int(outimage.shape[1]/subpixel), int(outimage.shape[0]/subpixel) ), interpolation = cv2.INTER_CUBIC)
 
         # write file
-        filename = outimgprefix+str(framecnt)+".png"
-        framecnt = framecnt + 1
+        filename = f"{outimgprefix}-{inter_index:05}-{i:04}.png"
         cv2.imwrite(filename,outimage)
         timerelapsed = time.time()-timerstart
         usppx = 1000000 * timerelapsed / (outimage.shape[0]*outimage.shape[1])
@@ -300,11 +295,10 @@ def morphprocess(mphs,framerate,outimgprefix,subpixel,smoothing) :
 ####
 
 def batchmorph(imgs,featuregridsize,subpixel,showfeatures,framerate,outimgprefix,smoothing,scale) :
-    global framecnt
-    framecnt = 0
     totaltimerstart = time.time()
     for idx in range(len(imgs)-1) :
         morphprocess(
+            idx,
             initmorph(imgs[idx],imgs[idx+1],featuregridsize,subpixel,showfeatures,scale),
             framerate,outimgprefix,subpixel,smoothing
         )
@@ -315,7 +309,6 @@ def batchmorph(imgs,featuregridsize,subpixel,showfeatures,framerate,outimgprefix
 mfeaturegridsize = 7 # number of image divisions on each axis, for example 5 creates 5x5 = 25 automatic feature points + 4 corners come automatically
 mframerate = 30 # number of transition frames to render + 1 ; for example 30 renders transiton frames 1..29
 moutprefix = "f" # output image name prefix
-framecnt = 0 # frame counter
 msubpixel = 1 # int, min: 1, max: no hard limit, but 4 should be enough
 msmoothing = 0 # median_filter smoothing
 mshowfeatures = False # render automatically detected features
@@ -327,7 +320,7 @@ mscale = 1.0 # image scale
 # CLI arguments
 
 margparser = argparse.ArgumentParser(description="Automatic Image Morphing https://github.com/jankovicsandras/autoimagemorph adapted from https://github.com/ddowd97/Morphing")
-margparser.add_argument("-inframes", default="", required=True, help="REQUIRED input filenames in a list, for example: -inframes ['f0.png','f30.png','f60.png']")
+margparser.add_argument("-keyframefile", type=pathlib.Path, required=True, help="REQUIRED file containing list of input filenames")
 margparser.add_argument("-outprefix", default="", required=True, help="REQUIRED output filename prefix, -outprefix f  will write/overwrite f1.png f2.png ...")
 margparser.add_argument("-featuregridsize", type=int, default=mfeaturegridsize, help="Number of image divisions on each axis, for example -featuregridsize 5 creates 25 automatic feature points. (default: %(default)s)")
 margparser.add_argument("-framerate", type=int, default=mframerate, help="Frames to render between each keyframe +1, for example -framerate 30 will render 29 frames between -inframes ['f0.png','f30.png'] (default: %(default)s)")
@@ -340,16 +333,10 @@ args = vars(margparser.parse_args())
 
 # arguments sanity check TODO
 
-if( len( args['inframes'] ) < 2 ) :
-    print("ERROR: command line argument -inframes must be a string array with minimum 2 elements.")
-    print("Example\r\n > python autoimagemorph.py -inframes ['frame0.png','frame30.png','frame60.png'] -outprefix frame ")
-    quit()
-
 if( len(args['outprefix']) < 1 ) :
     print("ERROR: -outprefix (output filename prefix) must be specified.")
     print("Example\r\n > python autoimagemorph.py -inframes ['frame0.png','frame30.png','frame60.png'] -outprefix frame ")
     quit()
-args['inframes'] = ast.literal_eval(args['inframes'])
 
 args['featuregridsize'] = int(args['featuregridsize'])
 
@@ -365,5 +352,7 @@ print("User input: \r\n"+str(args))
     
 # processing
 
-batchmorph(args['inframes'],args['featuregridsize'],args['subpixel'],args['showfeatures'],args['framerate'],args['outprefix'],args['smoothing'],args['scale'])
+inframes = np.loadtxt(args['keyframefile'], dtype=str)
+
+batchmorph(inframes,args['featuregridsize'],args['subpixel'],args['showfeatures'],args['framerate'],args['outprefix'],args['smoothing'],args['scale'])
 
