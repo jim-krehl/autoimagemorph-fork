@@ -297,6 +297,9 @@ def morphprocess(inter_index,mphs,framerate,outimgprefix,subpixel,smoothing) :
 def batchmorph(imgs,featuregridsize,subpixel,showfeatures,framerate,outimgprefix,smoothing,scale) :
     totaltimerstart = time.time()
     for idx in range(len(imgs)-1) :
+        print("morph:")
+        print(f"A: {imgs[idx]}")
+        print(f"B: {imgs[idx+1]}")
         morphprocess(
             idx,
             initmorph(imgs[idx],imgs[idx+1],featuregridsize,subpixel,showfeatures,scale),
