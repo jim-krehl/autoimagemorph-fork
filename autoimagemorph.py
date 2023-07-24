@@ -260,7 +260,7 @@ def initmorph(startimgpath,endimgpath,featuregridsize,subpixel,showfeatures,scal
 
 ####
 
-def morphprocess(inter_index,mphs,framerate,outimgprefix,subpixel,smoothing) :
+def morphprocess(inter_index,mphs,framerate,outdir,subpixel,smoothing) :
     # loop generate morph frames and save
     for i in range(1,framerate) :
         
@@ -286,7 +286,7 @@ def morphprocess(inter_index,mphs,framerate,outimgprefix,subpixel,smoothing) :
             outimage = cv2.resize(outimage, ( int(outimage.shape[1]/subpixel), int(outimage.shape[0]/subpixel) ), interpolation = cv2.INTER_CUBIC)
 
         # write file
-        filename = f"{outimgprefix}-{inter_index:05}-{i:04}.png"
+        filename = f"{outdir}/inter-{inter_index:05}-{i:04}.png"
         cv2.imwrite(filename,outimage)
         timerelapsed = time.time()-timerstart
         usppx = 1000000 * timerelapsed / (outimage.shape[0]*outimage.shape[1])
@@ -294,17 +294,21 @@ def morphprocess(inter_index,mphs,framerate,outimgprefix,subpixel,smoothing) :
 
 ####
 
-def batchmorph(imgs,featuregridsize,subpixel,showfeatures,framerate,outimgprefix,smoothing,scale) :
+def batchmorph(imgs,featuregridsize,subpixel,showfeatures,framerate,outdir,smoothing,scale) :
     totaltimerstart = time.time()
     for idx in range(len(imgs)-1) :
         print("morph:")
         print(f"A: {imgs[idx]}")
         print(f"B: {imgs[idx+1]}")
-        morphprocess(
-            idx,
-            initmorph(imgs[idx],imgs[idx+1],featuregridsize,subpixel,showfeatures,scale),
-            framerate,outimgprefix,subpixel,smoothing
-        )
+        try:
+            morphprocess(
+                idx,
+                initmorph(imgs[idx],imgs[idx+1],featuregridsize,subpixel,showfeatures,scale),
+                framerate,outdir,subpixel,smoothing
+            )
+        except np.linalg.LinAlgError:
+            print("Can't interpolate")
+
     print("\r\nDone. Total time: "+str(time.time()-totaltimerstart)+" s ")
 
 ###############################################################################
@@ -324,7 +328,7 @@ mscale = 1.0 # image scale
 
 margparser = argparse.ArgumentParser(description="Automatic Image Morphing https://github.com/jankovicsandras/autoimagemorph adapted from https://github.com/ddowd97/Morphing")
 margparser.add_argument("-keyframefile", type=pathlib.Path, required=True, help="REQUIRED file containing list of input filenames")
-margparser.add_argument("-outprefix", default="", required=True, help="REQUIRED output filename prefix, -outprefix f  will write/overwrite f1.png f2.png ...")
+margparser.add_argument("-outdir", default="", type=pathlib.Path, required=True, help="REQUIRED output directory")
 margparser.add_argument("-featuregridsize", type=int, default=mfeaturegridsize, help="Number of image divisions on each axis, for example -featuregridsize 5 creates 25 automatic feature points. (default: %(default)s)")
 margparser.add_argument("-framerate", type=int, default=mframerate, help="Frames to render between each keyframe +1, for example -framerate 30 will render 29 frames between -inframes ['f0.png','f30.png'] (default: %(default)s)")
 margparser.add_argument("-subpixel", type=int, default=msubpixel, help="Subpixel calculation to avoid image artifacts, for example -subpixel 4 is good quality, but 16 times slower processing. (default: %(default)s)")
@@ -335,11 +339,6 @@ margparser.add_argument("-scale", type=float, default=mscale, help="Input scalin
 args = vars(margparser.parse_args())
 
 # arguments sanity check TODO
-
-if( len(args['outprefix']) < 1 ) :
-    print("ERROR: -outprefix (output filename prefix) must be specified.")
-    print("Example\r\n > python autoimagemorph.py -inframes ['frame0.png','frame30.png','frame60.png'] -outprefix frame ")
-    quit()
 
 args['featuregridsize'] = int(args['featuregridsize'])
 
@@ -357,5 +356,5 @@ print("User input: \r\n"+str(args))
 
 inframes = np.loadtxt(args['keyframefile'], dtype=str)
 
-batchmorph(inframes,args['featuregridsize'],args['subpixel'],args['showfeatures'],args['framerate'],args['outprefix'],args['smoothing'],args['scale'])
+batchmorph(inframes,args['featuregridsize'],args['subpixel'],args['showfeatures'],args['framerate'],args['outdir'],args['smoothing'],args['scale'])
 
