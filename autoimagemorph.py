@@ -286,7 +286,7 @@ def morphprocess(inter_index,mphs,framerate,outdir,subpixel,smoothing) :
             outimage = cv2.resize(outimage, ( int(outimage.shape[1]/subpixel), int(outimage.shape[0]/subpixel) ), interpolation = cv2.INTER_CUBIC)
 
         # write file
-        filename = f"{outdir}/inter-{inter_index:05}-{i:04}.png"
+        filename = f"{outdir}/inter-{inter_index:05}-{i:04}-000.png"
         cv2.imwrite(filename,outimage)
         timerelapsed = time.time()-timerstart
         usppx = 1000000 * timerelapsed / (outimage.shape[0]*outimage.shape[1])
@@ -297,13 +297,18 @@ def morphprocess(inter_index,mphs,framerate,outdir,subpixel,smoothing) :
 def batchmorph(imgs,featuregridsize,subpixel,showfeatures,framerate,outdir,smoothing,scale) :
     totaltimerstart = time.time()
     for idx in range(len(imgs)-1) :
-        print("morph:")
+        img_a = imgs[idx][2]
+        img_b = imgs[idx+1][2]
+
+        framerate = imgs[idx][0] + 1
+
+        print(f"morph; frame rate = {framerate}:")
         print(f"A: {imgs[idx]}")
         print(f"B: {imgs[idx+1]}")
         try:
             morphprocess(
                 idx,
-                initmorph(imgs[idx],imgs[idx+1],featuregridsize,subpixel,showfeatures,scale),
+                initmorph(img_a,img_b,featuregridsize,subpixel,showfeatures,scale),
                 framerate,outdir,subpixel,smoothing
             )
         except np.linalg.LinAlgError:
@@ -354,7 +359,8 @@ print("User input: \r\n"+str(args))
     
 # processing
 
-inframes = np.loadtxt(args['keyframefile'], dtype=str)
+# key_frame_file_dtype = {'names': ('n_interpolations', 'key_frame_duration', 'key_frame_file'), 'formats': ('int', 'int', 'str')}
+inframes = np.genfromtxt(args['keyframefile'], dtype=None, comments='#', delimiter=':', names=('n_interpolations', 'key_frame_duration', 'key_frame_file'), encoding=None)
 
 batchmorph(inframes,args['featuregridsize'],args['subpixel'],args['showfeatures'],args['framerate'],args['outdir'],args['smoothing'],args['scale'])
 
