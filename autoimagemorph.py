@@ -260,7 +260,7 @@ def initmorph(startimgpath,endimgpath,featuregridsize,subpixel,showfeatures,scal
 
 ####
 
-def morphprocess(inter_index,mphs,framerate,outdir,subpixel,smoothing) :
+def morphprocess(inter_index,mphs,framerate,outdir,subpixel,smoothing,timelog) :
     # loop generate morph frames and save
     for i in range(1,framerate) :
         
@@ -291,10 +291,11 @@ def morphprocess(inter_index,mphs,framerate,outdir,subpixel,smoothing) :
         timerelapsed = time.time()-timerstart
         usppx = 1000000 * timerelapsed / (outimage.shape[0]*outimage.shape[1])
         print(filename+" saved, dimensions "+str(outimage.shape)+" time: "+"{0:.2f}".format(timerelapsed)+" s ; μs/pixel: "+"{0:.2f}".format(usppx) )
+        print(f"{filename}: {timerelapsed:.2f}s", file=timelog)
 
 ####
 
-def batchmorph(imgs,featuregridsize,subpixel,showfeatures,framerate,outdir,smoothing,scale) :
+def batchmorph(imgs,featuregridsize,subpixel,showfeatures,framerate,outdir,smoothing,scale,timelogfile) :
     totaltimerstart = time.time()
     for idx in range(len(imgs)-1) :
         img_a = imgs[idx][2]
@@ -306,11 +307,12 @@ def batchmorph(imgs,featuregridsize,subpixel,showfeatures,framerate,outdir,smoot
         print(f"A: {imgs[idx]}")
         print(f"B: {imgs[idx+1]}")
         try:
-            morphprocess(
-                idx,
-                initmorph(img_a,img_b,featuregridsize,subpixel,showfeatures,scale),
-                framerate,outdir,subpixel,smoothing
-            )
+            with open(timelogfile, 'a') as timelog:
+                morphprocess(
+                    idx,
+                    initmorph(img_a,img_b,featuregridsize,subpixel,showfeatures,scale),
+                    framerate,outdir,subpixel,smoothing,timelog
+                )
         except np.linalg.LinAlgError:
             print("Can't interpolate")
 
@@ -340,6 +342,7 @@ margparser.add_argument("-subpixel", type=int, default=msubpixel, help="Subpixel
 margparser.add_argument("-smoothing", type=int, default=msmoothing, help="median_filter smoothing/blur to remove image artifacts, for example -smoothing 2 will blur lightly. (default: %(default)s)")
 margparser.add_argument("-showfeatures", action="store_true", help="Flag to render feature points, for example -showfeatures")
 margparser.add_argument("-scale", type=float, default=mscale, help="Input scaling for preview, for example -scale 0.5 will halve both width and height, processing will be approx. 4x faster. (default: %(default)s)")
+margparser.add_argument("-timelog", type=pathlib.Path, help="log file for processing times")
 
 args = vars(margparser.parse_args())
 
@@ -362,5 +365,5 @@ print("User input: \r\n"+str(args))
 # key_frame_file_dtype = {'names': ('n_interpolations', 'key_frame_duration', 'key_frame_file'), 'formats': ('int', 'int', 'str')}
 inframes = np.genfromtxt(args['keyframefile'], dtype=None, comments='#', delimiter=':', names=('n_interpolations', 'key_frame_duration', 'key_frame_file'), encoding=None)
 
-batchmorph(inframes,args['featuregridsize'],args['subpixel'],args['showfeatures'],args['framerate'],args['outdir'],args['smoothing'],args['scale'])
+batchmorph(inframes,args['featuregridsize'],args['subpixel'],args['showfeatures'],args['framerate'],args['outdir'],args['smoothing'],args['scale'],args['timelog'])
 
